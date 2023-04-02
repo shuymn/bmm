@@ -11,7 +11,10 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
+
+	"golang.org/x/text/encoding/japanese"
 )
 
 const (
@@ -56,6 +59,12 @@ func main() {
 			parentPath := filepath.Dir(path)
 			notFoundWAVs := make([]string, 0, len(wavs))
 			for _, wav := range wavs {
+				if runtime.GOOS == "windows" {
+					wav, err = japanese.ShiftJIS.NewDecoder().String(wav)
+					if err != nil {
+						return fmt.Errorf("Error decoding string: %w", err)
+					}
+				}
 				_, err := os.Stat(filepath.Join(parentPath, wav))
 				if err == nil {
 					continue
