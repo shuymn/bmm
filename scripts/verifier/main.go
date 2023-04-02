@@ -60,7 +60,8 @@ func main() {
 				return fmt.Errorf("Error reading directory: %w", err)
 			}
 			var extMismatch bool
-			notFoundWAVs := make([]string, 0, len(wavs))
+			emptyDirectory := true
+			usedWAVs := make([]string, 0, len(wavs))
 			for _, entry := range entries {
 				if entry.IsDir() {
 					continue
@@ -70,7 +71,11 @@ func main() {
 				if ext != extWAV && ext != extOGG {
 					continue
 				}
+				if emptyDirectory {
+					emptyDirectory = false
+				}
 				if idx := contains(wavs, name); idx != -1 {
+					usedWAVs = append(usedWAVs, name)
 					notFoundCount--
 					continue
 				}
@@ -83,9 +88,7 @@ func main() {
 				}
 				if idx := contains(wavs, newName); idx != -1 {
 					extMismatch = true
-					continue
 				}
-				notFoundWAVs = append(notFoundWAVs, name)
 			}
 			if notFoundCount == 0 {
 				return nil
@@ -106,15 +109,21 @@ func main() {
 				notFoundCount,
 				float64(notFoundCount)/float64(len(wavs))*100,
 			)
-			if len(entries) == 0 {
+			if emptyDirectory {
 				fmt.Printf(" - (empty directory)\n")
-			}
-			for i, wav := range notFoundWAVs {
-				if i > 10 {
-					fmt.Printf(" - ...\n")
-					break
+			} else {
+				var count int
+				for _, wav := range wavs {
+					if count > 10 {
+						fmt.Printf(" - ...\n")
+						break
+					}
+					if idx := contains(usedWAVs, wav); idx != -1 {
+						continue
+					}
+					fmt.Printf(" - %s\n", wav)
+					count++
 				}
-				fmt.Printf(" - %s\n", wav)
 			}
 			fmt.Printf("\n")
 			return nil
