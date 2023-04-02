@@ -105,7 +105,8 @@ func main() {
 			}
 			u := getIR2IRURL(checksum)
 			if extMismatch && notFoundCount == len(wavs) {
-				fmt.Printf("Extension mismatch in %s:\n - URL: %s\n", path, u)
+				ext := filepath.Ext(wavs[0])
+				fmt.Printf("Extension mismatch (%s expected) in %s:\n - URL: %s\n", ext, path, u)
 				return nil
 			}
 			fmt.Printf(
