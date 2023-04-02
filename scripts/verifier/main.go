@@ -29,6 +29,7 @@ var wavRegexp = regexp.MustCompile(`#WAV([0-9A-Za-z]{2})\s(.*)`)
 type Config struct {
 	Sources    []string `json:"srcDirs"`
 	Extensions []string `json:"extensions"`
+	Ignore     []string `json:"ignore"`
 }
 
 func main() {
@@ -46,7 +47,13 @@ func main() {
 			if d.IsDir() {
 				return nil
 			}
-			if idx := contains(config.Extensions, filepath.Ext(path)); idx == -1 {
+			idx := containsFunc(config.Ignore, func(s string) bool {
+				return strings.HasPrefix(path, s)
+			})
+			if idx != -1 {
+				return nil
+			}
+			if idx = contains(config.Extensions, filepath.Ext(path)); idx == -1 {
 				return nil
 			}
 			wavs, err := getWAVs(path)
@@ -172,6 +179,15 @@ func checkDirectoryExistance(path string) error {
 func contains(s []string, target string) int {
 	for i, v := range s {
 		if v == target {
+			return i
+		}
+	}
+	return -1
+}
+
+func containsFunc(s []string, f func(string) bool) int {
+	for i, v := range s {
+		if f(v) {
 			return i
 		}
 	}
