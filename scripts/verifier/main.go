@@ -60,6 +60,7 @@ func main() {
 				return fmt.Errorf("Error reading directory: %w", err)
 			}
 			var extMismatch bool
+			notFoundWAVs := make([]string, 0, len(wavs))
 			for _, entry := range entries {
 				if entry.IsDir() {
 					continue
@@ -73,6 +74,7 @@ func main() {
 					notFoundCount--
 					continue
 				}
+				notFoundWAVs = append(notFoundWAVs, name)
 				var newName string
 				switch ext {
 				case extWAV:
@@ -103,6 +105,14 @@ func main() {
 				notFoundCount,
 				float64(notFoundCount)/float64(len(wavs))*100,
 			)
+			for i, wav := range notFoundWAVs {
+				if i > 10 {
+					fmt.Printf(" - ...\n")
+					break
+				}
+				fmt.Printf(" - %s\n", wav)
+			}
+			fmt.Printf("\n")
 			return nil
 		})
 		if err != nil {
