@@ -21,7 +21,7 @@ const (
 	lr2irBaseURL = "http://www.dream-pro.info/~lavalse/LR2IR/search.cgi"
 )
 
-var wavRegexp = regexp.MustCompile(`#WAV([0-9A-Fa-f]{2})\s(.*)`)
+var wavRegexp = regexp.MustCompile(`#WAV([0-9A-Za-z]{2})\s(.*)`)
 
 type Config struct {
 	Sources    []string `json:"srcDirs"`
@@ -54,46 +54,33 @@ func main() {
 				return nil
 			}
 			parentPath := filepath.Dir(path)
-			notFoundCount := len(wavs)
-			entries, err := os.ReadDir(parentPath)
-			if err != nil {
-				return fmt.Errorf("Error reading directory: %w", err)
-			}
-			var extMismatch bool
-			emptyDirectory := true
-			usedWAVs := make([]string, 0, len(wavs))
-			for _, entry := range entries {
-				if entry.IsDir() {
+			notFoundWAVs := make([]string, 0, len(wavs))
+			for _, wav := range wavs {
+				_, err := os.Stat(filepath.Join(parentPath, wav))
+				if err == nil {
 					continue
 				}
-				name := entry.Name()
-				ext := filepath.Ext(name)
-				if ext != extWAV && ext != extOGG {
-					continue
+				if !os.IsNotExist(err) {
+					return fmt.Errorf("Error checking file: %w", err)
 				}
-				if emptyDirectory {
-					emptyDirectory = false
-				}
-				if idx := contains(wavs, name); idx != -1 {
-					usedWAVs = append(usedWAVs, name)
-					notFoundCount--
-					continue
-				}
-				var newName string
+				ext := filepath.Ext(wav)
+				var newWAV string
 				switch ext {
 				case extWAV:
-					newName = name[:len(name)-len(ext)] + extOGG
+					newWAV = wav[:len(wav)-len(ext)] + extOGG
 				case extOGG:
-					newName = name[:len(name)-len(ext)] + extWAV
+					newWAV = wav[:len(wav)-len(ext)] + extWAV
 				}
-				if idx := contains(wavs, newName); idx != -1 {
-					extMismatch = true
+				_, err = os.Stat(filepath.Join(parentPath, newWAV))
+				if err == nil {
+					continue
 				}
+				if !os.IsNotExist(err) {
+					return fmt.Errorf("Error checking file: %w", err)
+				}
+				notFoundWAVs = append(notFoundWAVs, wav)
 			}
-			if notFoundCount == 0 {
-				return nil
-			}
-			if extMismatch && notFoundCount == len(wavs) {
+			if len(notFoundWAVs) == 0 {
 				return nil
 			}
 			checksum, err := calculateFileChecksum(path)
@@ -106,24 +93,15 @@ func main() {
 				path,
 				u,
 				len(wavs),
-				notFoundCount,
-				float64(notFoundCount)/float64(len(wavs))*100,
+				len(notFoundWAVs),
+				float64(len(notFoundWAVs))/float64(len(wavs))*100,
 			)
-			if emptyDirectory {
-				fmt.Printf(" - (empty directory)\n")
-			} else {
-				var count int
-				for _, wav := range wavs {
-					if count > 10 {
-						fmt.Printf(" - ...\n")
-						break
-					}
-					if idx := contains(usedWAVs, wav); idx != -1 {
-						continue
-					}
-					fmt.Printf(" - %s\n", wav)
-					count++
+			for i, wav := range notFoundWAVs {
+				if i > 10 {
+					fmt.Printf("   - ...\n")
+					break
 				}
+				fmt.Printf("   - %s\n", wav)
 			}
 			fmt.Printf("\n")
 			return nil
