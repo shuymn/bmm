@@ -99,16 +99,14 @@ func main() {
 			if notFoundCount == 0 {
 				return nil
 			}
+			if extMismatch && notFoundCount == len(wavs) {
+				return nil
+			}
 			checksum, err := calculateFileChecksum(path)
 			if err != nil {
 				return fmt.Errorf("Error calculating checksum: %w", err)
 			}
 			u := getIR2IRURL(checksum)
-			if extMismatch && notFoundCount == len(wavs) {
-				ext := filepath.Ext(wavs[0])
-				fmt.Printf("Extension mismatch (%s expected) in %s:\n - URL: %s\n", ext, path, u)
-				return nil
-			}
 			fmt.Printf(
 				"Missing WAVs in %s:\n - URL: %s\n - total\t%d\n - missing\t%d (%.1f%%)\n",
 				path,
