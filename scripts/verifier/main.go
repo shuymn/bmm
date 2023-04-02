@@ -74,7 +74,6 @@ func main() {
 					notFoundCount--
 					continue
 				}
-				notFoundWAVs = append(notFoundWAVs, name)
 				var newName string
 				switch ext {
 				case extWAV:
@@ -84,7 +83,9 @@ func main() {
 				}
 				if idx := contains(wavs, newName); idx != -1 {
 					extMismatch = true
+					continue
 				}
+				notFoundWAVs = append(notFoundWAVs, name)
 			}
 			if notFoundCount == 0 {
 				return nil
@@ -105,6 +106,9 @@ func main() {
 				notFoundCount,
 				float64(notFoundCount)/float64(len(wavs))*100,
 			)
+			if len(entries) == 0 {
+				fmt.Printf(" - (empty directory)\n")
+			}
 			for i, wav := range notFoundWAVs {
 				if i > 10 {
 					fmt.Printf(" - ...\n")
