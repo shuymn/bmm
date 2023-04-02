@@ -56,12 +56,14 @@ func main() {
 			if err != nil {
 				return fmt.Errorf("Error reading directory: %w", err)
 			}
+			var extMismatch bool
 			for _, entry := range entries {
 				if entry.IsDir() {
 					continue
 				}
 				name := entry.Name()
-				if ext := filepath.Ext(name); ext != ".wav" && ext != ".ogg" {
+				ext := filepath.Ext(name)
+				if ext != ".wav" && ext != ".ogg" {
 					continue
 				}
 				fullpath := filepath.Join(parentPath, name)
@@ -71,17 +73,34 @@ func main() {
 				if idx := contains(notFoundWAVs, name); idx != -1 {
 					notFoundCount--
 					found[fullpath] = true
+					continue
+				}
+				var newName string
+				switch ext {
+				case ".wav":
+					newName = name[:len(name)-len(ext)] + ".ogg"
+				case ".ogg":
+					newName = name[:len(name)-len(ext)] + ".wav"
+				}
+				if idx := contains(notFoundWAVs, newName); idx != -1 {
+					extMismatch = true
+					found[filepath.Join(parentPath, newName)] = true
 				}
 			}
-			if notFoundCount > 0 {
-				fmt.Printf(
-					"Missing WAVs in %s:\n - total\t%d\n - missing\t%d (%.1f%%)\n",
-					path,
-					len(wavs),
-					notFoundCount,
-					float64(notFoundCount)/float64(len(wavs))*100,
-				)
+			if notFoundCount == 0 {
+				return nil
 			}
+			if extMismatch && notFoundCount == len(wavs) {
+				fmt.Printf("Extension mismatch in %s:\n", path)
+				return nil
+			}
+			fmt.Printf(
+				"Missing WAVs in %s:\n - total\t%d\n - missing\t%d (%.1f%%)\n",
+				path,
+				len(wavs),
+				notFoundCount,
+				float64(notFoundCount)/float64(len(wavs))*100,
+			)
 			return nil
 		})
 		if err != nil {
