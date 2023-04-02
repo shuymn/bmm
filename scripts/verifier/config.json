@@ -1,0 +1,4 @@
+{
+  "srcDirs": ["/path/to/srcDir"],
+  "extensions": [".bms", ".bme", ".bml", ".bmx"]
+}
