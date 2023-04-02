@@ -36,7 +36,6 @@ func main() {
 	}
 
 	for _, src := range config.Sources {
-		found := make(map[string]bool, 0)
 		err := filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
 			if err != nil {
 				return err
@@ -51,17 +50,11 @@ func main() {
 			if err != nil {
 				return err
 			}
-			parentPath := filepath.Dir(path)
-			notFoundWAVs := make([]string, 0, len(wavs))
-			for _, wav := range wavs {
-				if !found[filepath.Join(parentPath, wav)] {
-					notFoundWAVs = append(notFoundWAVs, wav)
-				}
-			}
-			notFoundCount := len(notFoundWAVs)
-			if notFoundCount == 0 {
+			if len(wavs) == 0 {
 				return nil
 			}
+			parentPath := filepath.Dir(path)
+			notFoundCount := len(wavs)
 			entries, err := os.ReadDir(parentPath)
 			if err != nil {
 				return fmt.Errorf("Error reading directory: %w", err)
@@ -76,13 +69,8 @@ func main() {
 				if ext != extWAV && ext != extOGG {
 					continue
 				}
-				fullpath := filepath.Join(parentPath, name)
-				if found[fullpath] {
-					continue
-				}
-				if idx := contains(notFoundWAVs, name); idx != -1 {
+				if idx := contains(wavs, name); idx != -1 {
 					notFoundCount--
-					found[fullpath] = true
 					continue
 				}
 				var newName string
@@ -92,7 +80,7 @@ func main() {
 				case extOGG:
 					newName = name[:len(name)-len(ext)] + extWAV
 				}
-				if idx := contains(notFoundWAVs, newName); idx != -1 {
+				if idx := contains(wavs, newName); idx != -1 {
 					extMismatch = true
 				}
 			}
