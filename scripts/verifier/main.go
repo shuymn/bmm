@@ -26,7 +26,7 @@ func main() {
 	}
 
 	for _, src := range config.Sources {
-		found := make(map[string]bool)
+		found := make(map[string]bool, 0)
 		err := filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
 			if err != nil {
 				return err
@@ -42,7 +42,7 @@ func main() {
 				return err
 			}
 			parentPath := filepath.Dir(path)
-			notFoundWAVs := make([]string, len(wavs))
+			notFoundWAVs := make([]string, 0, len(wavs))
 			for _, wav := range wavs {
 				if !found[filepath.Join(parentPath, wav)] {
 					notFoundWAVs = append(notFoundWAVs, wav)
