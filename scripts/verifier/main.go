@@ -2,13 +2,23 @@ package main
 
 import (
 	"bufio"
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+)
+
+const (
+	extWAV = ".wav"
+	extOGG = ".ogg"
+
+	lr2irBaseURL = "http://www.dream-pro.info/~lavalse/LR2IR/search.cgi"
 )
 
 var wavRegexp = regexp.MustCompile(`#WAV([0-9A-Fa-f]{2})\s(.*)`)
@@ -63,7 +73,7 @@ func main() {
 				}
 				name := entry.Name()
 				ext := filepath.Ext(name)
-				if ext != ".wav" && ext != ".ogg" {
+				if ext != extWAV && ext != extOGG {
 					continue
 				}
 				fullpath := filepath.Join(parentPath, name)
@@ -77,26 +87,31 @@ func main() {
 				}
 				var newName string
 				switch ext {
-				case ".wav":
-					newName = name[:len(name)-len(ext)] + ".ogg"
-				case ".ogg":
-					newName = name[:len(name)-len(ext)] + ".wav"
+				case extWAV:
+					newName = name[:len(name)-len(ext)] + extOGG
+				case extOGG:
+					newName = name[:len(name)-len(ext)] + extWAV
 				}
 				if idx := contains(notFoundWAVs, newName); idx != -1 {
 					extMismatch = true
-					found[filepath.Join(parentPath, newName)] = true
 				}
 			}
 			if notFoundCount == 0 {
 				return nil
 			}
+			checksum, err := calculateFileChecksum(path)
+			if err != nil {
+				return fmt.Errorf("Error calculating checksum: %w", err)
+			}
+			u := getIR2IRURL(checksum)
 			if extMismatch && notFoundCount == len(wavs) {
-				fmt.Printf("Extension mismatch in %s:\n", path)
+				fmt.Printf("Extension mismatch in %s:\n - URL: %s\n", path, u)
 				return nil
 			}
 			fmt.Printf(
-				"Missing WAVs in %s:\n - total\t%d\n - missing\t%d (%.1f%%)\n",
+				"Missing WAVs in %s:\n - URL: %s\n - total\t%d\n - missing\t%d (%.1f%%)\n",
 				path,
+				u,
 				len(wavs),
 				notFoundCount,
 				float64(notFoundCount)/float64(len(wavs))*100,
@@ -180,11 +195,38 @@ func getWAVs(path string) ([]string, error) {
 		matches := wavRegexp.FindStringSubmatch(line)
 		if len(matches) > 0 {
 			file := matches[2]
-			if strings.HasSuffix(file, ".wav") || strings.HasSuffix(file, ".ogg") {
+			if strings.HasSuffix(file, extWAV) || strings.HasSuffix(file, extOGG) {
 				wavs = append(wavs, file)
 			}
 		}
 	}
 
 	return wavs, nil
+}
+
+func getIR2IRURL(bmsmd5 string) string {
+	u, err := url.Parse(lr2irBaseURL)
+	if err != nil {
+		panic(err)
+	}
+	q := u.Query()
+	q.Set("bmsmd5", bmsmd5)
+	u.RawQuery = q.Encode()
+	return u.String()
+}
+
+func calculateFileChecksum(path string) (string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", fmt.Errorf("Error opening file: %w", err)
+	}
+	defer file.Close()
+
+	hash := md5.New()
+	_, err = io.Copy(hash, file)
+	if err != nil {
+		return "", fmt.Errorf("Error copy file: %w", err)
+	}
+
+	return hex.EncodeToString(hash.Sum(nil)), nil
 }
