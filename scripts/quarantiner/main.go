@@ -62,6 +62,7 @@ func main() {
 		for _, dir := range dirs {
 			fmt.Println(dir)
 		}
+		return
 	}
 
 	if err = moveDirectories(config.Destination, dirs); err != nil {
