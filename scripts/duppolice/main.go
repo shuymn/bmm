@@ -13,7 +13,13 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 )
+
+const maxConcurrency = 10
+
+var globalRand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 type Config struct {
 	Sources       []string `json:"srcDirs"`
@@ -21,8 +27,6 @@ type Config struct {
 	MinDuplicates int      `json:"minDuplicates"`
 	Extensions    []string `json:"extensions"`
 }
-
-var globalRand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 func main() {
 	var debug, merge bool
@@ -295,46 +299,56 @@ func mergeDirectories(root string) error {
 		return fmt.Errorf("Error getting subdirectories: %w", err)
 	}
 
+	var eg errgroup.Group
+	semaphore := make(chan struct{}, maxConcurrency)
 	for _, subdir := range subdirs {
-		var destDir string
-		srcDirs, err := getSubDirectories(subdir)
-		if err != nil {
-			return fmt.Errorf("Error getting subsubdirectories: %w", err)
-		}
-		for _, srcDir := range srcDirs {
-			destDir = filepath.Dir(srcDir)
-			err := filepath.WalkDir(srcDir, func(srcPath string, d fs.DirEntry, err error) error {
-				if err != nil {
-					return err
-				}
-				if d.IsDir() {
-					return nil
-				}
-				relPath, err := filepath.Rel(srcDir, srcPath)
-				if err != nil {
-					return err
-				}
-				destPath := filepath.Join(destDir, relPath)
-				if err = os.MkdirAll(filepath.Dir(destPath), os.ModePerm); err != nil {
-					return err
-				}
-				if err = copyFile(srcPath, destPath); err != nil {
-					return err
-				}
-				if err = os.Remove(srcPath); err != nil {
-					return fmt.Errorf("Error deleting file: %w", err)
-				}
-				return nil
-			})
+		subdir := subdir
+		semaphore <- struct{}{}
+
+		eg.Go(func() error {
+			defer func() { <-semaphore }()
+
+			var destDir string
+			srcDirs, err := getSubDirectories(subdir)
 			if err != nil {
-				return fmt.Errorf("Error walking directory: %w", err)
+				return fmt.Errorf("Error getting subsubdirectories: %w", err)
 			}
-		}
-		if destDir != "" {
-			fmt.Printf("Successfully merged directory: %s\n", destDir)
-		}
+			for _, srcDir := range srcDirs {
+				destDir = filepath.Dir(srcDir)
+				err := filepath.WalkDir(srcDir, func(srcPath string, d fs.DirEntry, err error) error {
+					if err != nil {
+						return err
+					}
+					if d.IsDir() {
+						return nil
+					}
+					relPath, err := filepath.Rel(srcDir, srcPath)
+					if err != nil {
+						return err
+					}
+					destPath := filepath.Join(destDir, relPath)
+					if err = os.MkdirAll(filepath.Dir(destPath), os.ModePerm); err != nil {
+						return err
+					}
+					if err = copyFile(srcPath, destPath); err != nil {
+						return err
+					}
+					if err = os.Remove(srcPath); err != nil {
+						return fmt.Errorf("Error deleting file: %w", err)
+					}
+					return nil
+				})
+				if err != nil {
+					return fmt.Errorf("Error walking directory: %w", err)
+				}
+			}
+			if destDir != "" {
+				fmt.Printf("Successfully merged directory: %s\n", destDir)
+			}
+			return nil
+		})
 	}
-	return nil
+	return eg.Wait()
 }
 
 func copyFile(src, dest string) error {
