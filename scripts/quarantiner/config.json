@@ -1,0 +1,4 @@
+{
+  "srcDirs": ["/path/to/srcDir"],
+  "destDir": "/path/to/destDir"
+}
