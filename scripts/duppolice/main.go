@@ -106,7 +106,7 @@ func main() {
 		}
 	}
 
-	if err := removeEmptyDirectory(config.Destination); err != nil {
+	if err := removeEmptyDirectory(config.Destination, config.Destination); err != nil {
 		fmt.Println(err)
 		return
 	}
@@ -236,7 +236,7 @@ func removeChecksumDuplication(checksums map[string][]string) map[string][]strin
 	return newChecksum
 }
 
-func removeEmptyDirectory(path string) error {
+func removeEmptyDirectory(destination, path string) error {
 	entries, err := os.ReadDir(path)
 	if err != nil {
 		return fmt.Errorf("Error reading directory: %w", err)
@@ -244,7 +244,7 @@ func removeEmptyDirectory(path string) error {
 	for _, file := range entries {
 		if file.IsDir() {
 			subdir := filepath.Join(path, file.Name())
-			if err := removeEmptyDirectory(subdir); err != nil {
+			if err := removeEmptyDirectory(destination, subdir); err != nil {
 				return err
 			}
 		}
@@ -253,7 +253,7 @@ func removeEmptyDirectory(path string) error {
 	if err != nil {
 		return fmt.Errorf("Error re-reading directory: %w", err)
 	}
-	if len(entries) == 0 {
+	if len(entries) == 0 && path != destination {
 		if err := os.Remove(path); err != nil {
 			return fmt.Errorf("Error removing directory: %w", err)
 		}
