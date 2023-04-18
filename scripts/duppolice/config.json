@@ -1,0 +1,6 @@
+{
+  "srcDirs": ["/path/to/srcDir"],
+  "destDir": "/path/to/destDir",
+  "minDuplicates": 2,
+  "extensions": [".bms", ".bme", ".bml", ".bmx"]
+}
