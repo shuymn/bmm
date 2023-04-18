@@ -29,7 +29,7 @@ foreach ($dir in $subDirs) {
         Write-Host "Skipping: A directory with the same name already exists in $($destinationPath) - $($dir.Name)"
     } else {
         Write-Host "Starting move of $($dir.Name)"
-        Move-Item -Path $dir.FullName -Destination $destinationPath
+        Move-Item -LiteralPath $dir.FullName -Destination $destinationPath
         Write-Host "Finished moving $($dir.Name)"
     }
 
