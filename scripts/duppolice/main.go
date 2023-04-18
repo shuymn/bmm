@@ -48,7 +48,7 @@ func main() {
 				return err
 			}
 			if d.IsDir() {
-				if d.Name() == config.Destination {
+				if path == config.Destination {
 					return filepath.SkipDir
 				}
 				return nil
